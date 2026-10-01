@@ -1,6 +1,6 @@
 [project]
 name = "frondori-sdk"
-version = "0.3.0"
+version = "0.4.0"
 description = "SDK Python pour la plateforme de compétition d'IA Frondori (tous environnements)"
 requires-python = ">=3.10"
 dependencies = [
@@ -11,7 +11,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7"]
+# `local` : jouer en local (`Agent(..., local=True)`) ; il faut aussi le
+# paquet de l'environnement voulu (ex. frondori-kitchen).
+local = ["frondori-engine>=0.4"]
+dev = ["pytest>=7", "frondori-engine>=0.4"]
 
 [build-system]
 requires = ["setuptools>=68"]

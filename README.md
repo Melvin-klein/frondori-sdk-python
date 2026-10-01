@@ -10,15 +10,20 @@ décrit ses observations et ses actions au début de chaque match. Un même
 agent (un même token) peut jouer à plusieurs environnements ; son classement
 est tenu séparément pour chacun.
 
-Pour s'entraîner en local, sans serveur, utiliser `frondori-engine` : ce sont
-les mêmes environnements, et **les observations reçues en compétition ont
-exactement la même forme qu'en local**. Une politique entraînée avec
-`frondori-engine` se branche donc telle quelle ici.
+Pour s'entraîner en local, sans serveur, utiliser `frondori-engine` et les
+paquets des environnements voulus (`frondori-kitchen`, `frondori-football`...) :
+ce sont les mêmes environnements, et **les observations reçues en compétition
+ont exactement la même forme qu'en local**. Une politique entraînée en local
+se branche donc telle quelle ici — et le SDK sait aussi jouer un match complet
+en local (`local=True`).
 
 ## Installation
 
 ```bash
 pip install frondori-sdk
+
+# Pour jouer aussi en local : frondori-engine et les environnements voulus
+pip install "frondori-sdk[local]" frondori-kitchen
 ```
 
 Dépendances : Python >= 3.10, `websockets`, `msgpack`, `numpy`, `gymnasium`.
@@ -28,7 +33,7 @@ Dépendances : Python >= 3.10, `websockets`, `msgpack`, `numpy`, `gymnasium`.
 ```python
 from frondori import Agent
 
-agent = Agent(url="wss://…/agent", token="frd_…", environment="kitchen-v0")
+agent = Agent(token="frd_…", environment="kitchen-v0")   # sans url : le serveur Frondori
 
 def act(observation):
     return my_policy(observation)  # une action de agent.action_space
@@ -51,6 +56,39 @@ tourne déjà. Utiliser `play()` à la place :
 ```python
 result = await agent.play(act)
 ```
+
+## Jouer en local
+
+Même code, mêmes résultats : seuls les paramètres d'`Agent` changent.
+
+```python
+# Sur le serveur Frondori (url par défaut, surchargeable par FRONDORI_URL)
+agent = Agent(token="frd_…", environment="kitchen-v0")
+
+# En local, avec l'environnement installé : pas de token
+agent = Agent(environment="kitchen-v0", local=True)
+
+result = agent.run(act)
+```
+
+Le match local reproduit les conditions de la compétition : mêmes
+observations (mêmes types), budget de calcul appliqué (au-delà : action
+neutre, `actions_too_slow`), actions invalides remplacées, même
+`MatchResult`. Ton siège est tiré au hasard, comme l'ordre d'arrivée en
+ligne. Pas de réseau, donc jamais d'action manquante, et le match va aussi
+vite que tes politiques.
+
+Les autres sièges sont joués par ta propre politique (self-play), ou par
+celles que tu fournis dans `others`, une par autre siège :
+
+```python
+result = Agent(environment="football-v0", local=True, others=[baseline.act], seed=0).run(act)
+```
+
+`seed` rend l'épisode et le tirage du siège reproductibles. En self-play, le
+même appelable joue tous les sièges : si ta politique garde un état, donne
+aux autres sièges leurs propres instances via `others`. En local, `run()`
+fonctionne partout, notebooks compris.
 
 ## Un agent écrit comme une classe
 
@@ -162,10 +200,12 @@ Pas de reconnexion : une déconnexion en cours de match est un forfait.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -e ../frondori-engine -e ".[dev]"   # frondori-engine : pas encore sur PyPI
 python -m pytest
 ```
 
-Les tests sont isolés : aucun ne nécessite le serveur réel. Les vecteurs de
+Les tests sont isolés : aucun ne nécessite le serveur réel, ni aucun paquet
+d'environnement (le mode local est testé sur l'environnement d'exemple
+`tests/rps.py`, enregistré à la main). Les vecteurs de
 `tests/test_messages.py` sont des octets réellement produits par le serveur
 Rust (`protocol::encode`) ; s'ils cassent, le protocole a changé côté serveur.

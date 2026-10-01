@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import os
 import time
 from dataclasses import dataclass, field
 from typing import Any, Callable
@@ -33,6 +34,15 @@ from .messages import (
 from .spaces import from_wire, space_from_spec, to_wire
 
 logger = logging.getLogger(__name__)
+
+# Le serveur de compétition Frondori, utilisé quand `url` n'est pas fournie.
+# Adresse PROVISOIRE, à remplacer au déploiement ; surchargeable sans toucher
+# au code par la variable d'environnement FRONDORI_URL.
+DEFAULT_URL = "wss://frondori.example/agent"
+
+
+def default_url() -> str:
+    return os.environ.get("FRONDORI_URL", DEFAULT_URL)
 
 
 @dataclass
@@ -82,8 +92,18 @@ class Agent:
             ...  # appelle un modèle, retourne une action de l'action_space
             return action
 
-        result = Agent(url="ws://host:8080/agent", token="...", environment="kitchen-v0").run(act)
+        result = Agent(token="frd_...", environment="kitchen-v0").run(act)
         print(result.own_return, result.returns)
+
+    Sans `url`, l'agent se connecte au serveur de compétition Frondori.
+    Avec `local=True`, le match se joue sur ta machine, avec l'environnement
+    installé (`pip install frondori-engine frondori-kitchen`), dans les mêmes
+    conditions qu'en compétition (cf. `frondori.local`) — sans token :
+
+        result = Agent(environment="kitchen-v0", local=True).run(act)
+
+    En local, les autres agents du match sont joués par ta propre politique
+    (self-play), ou par les politiques de `others`, une par autre siège.
 
     Un même agent (un même token) peut jouer à n'importe quel environnement
     du serveur : c'est `environment` qui choisit. `act` est rappelée une fois par
@@ -104,12 +124,34 @@ class Agent:
     remplacée par l'action neutre.
     """
 
-    def __init__(self, url: str, token: str, environment: str, client_name: str = "python-sdk") -> None:
-        self.url = url
+    def __init__(
+        self,
+        url: str | None = None,
+        token: str | None = None,
+        environment: str | None = None,
+        client_name: str = "python-sdk",
+        *,
+        local: bool = False,
+        others: list[Callable[[Any], Any]] | None = None,
+        seed: int | None = None,
+    ) -> None:
+        if not environment:
+            raise ValueError("`environment` est requis (ex. environment=\"kitchen-v0\")")
+        if not local and not token:
+            raise ValueError("`token` est requis pour jouer sur un serveur (ou local=True pour jouer en local)")
+        if not local and (others is not None or seed is not None):
+            raise ValueError("`others` et `seed` ne servent qu'en local (local=True)")
+        self.url = None if local else (url or default_url())
         self.token = token
         # Identifiant versionné de l'environnement à jouer (ex: "football-v0").
         self.environment = environment
         self.client_name = client_name
+        # Mode local : l'environnement installé au lieu du serveur.
+        self.local = local
+        # En local : politiques des autres sièges (sinon, self-play), et seed
+        # de l'épisode et du tirage du siège (reproductible).
+        self.others = others
+        self.seed = seed
         # Rempli au `Welcome` (connexion acceptée).
         self.player_id: str | None = None
         # Remplis au `MatchStart` (tout début du match).
@@ -128,7 +170,13 @@ class Agent:
         Lève `RuntimeError` si une boucle asyncio tourne déjà dans le thread
         courant (notebook Jupyter, code déjà `async`...) : `asyncio.run` ne
         peut pas s'imbriquer. Dans ce cas, utiliser `await agent.play(act)`.
+        En local, pas de réseau ni de boucle asyncio : `run()` fonctionne
+        partout, notebooks compris.
         """
+        if self.local:
+            from .local import play_local
+
+            return play_local(self, act)
         try:
             asyncio.get_running_loop()
         except RuntimeError:
@@ -144,6 +192,11 @@ class Agent:
     async def play(self, act: Callable[[Any], Any]) -> MatchResult:
         """Point d'entrée ASYNC : joue un match complet et retourne son
         résultat. `run()` n'est qu'un raccourci synchrone autour."""
+        if self.local:
+            # Pas de réseau : le match se joue directement, d'un bloc.
+            from .local import play_local
+
+            return play_local(self, act)
         # `max_size=None` : désactive la limite de taille de frame par défaut
         # de la lib `websockets`, pensée pour d'autres usages.
         #
