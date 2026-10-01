@@ -57,9 +57,19 @@ tourne déjà. Utiliser `play()` à la place :
 result = await agent.play(act)
 ```
 
-## Jouer en local
+## Jouer en local : évaluer une politique entraînée
 
-Même code, mêmes résultats : seuls les paramètres d'`Agent` changent.
+Trois étapes, trois outils :
+
+| Étape | Outil | Pour |
+|---|---|---|
+| 1. Entraîner | `frondori_engine.make("kitchen-v0")` (API PettingZoo) | Apprendre : chaque pas, chaque récompense, tous les agents sous ton contrôle |
+| 2. Évaluer | `Agent(environment="kitchen-v0", local=True)` | Vérifier une politique entraînée en conditions de compétition |
+| 3. Concourir | `Agent(token="frd_…", environment="kitchen-v0")` | Jouer contre les autres participants, entrer au classement |
+
+`Agent` ne sert pas à entraîner : `act` ne reçoit que l'observation, jamais
+la récompense, et le résultat n'arrive qu'en fin de match. Pour les étapes 2
+et 3, le code est le même : seuls les paramètres d'`Agent` changent.
 
 ```python
 # Sur le serveur Frondori (url par défaut, surchargeable par FRONDORI_URL)
