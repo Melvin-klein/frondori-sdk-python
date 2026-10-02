@@ -1,8 +1,24 @@
 [project]
 name = "frondori-sdk"
 version = "0.4.0"
-description = "SDK Python pour la plateforme de compétition d'IA Frondori (tous environnements)"
+description = "Python SDK for the Frondori AI competition platform: play any environment online, or locally in competition conditions."
+readme = "README.md"
 requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Melvine Nargeot" }]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Education",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+]
 dependencies = [
     "websockets>=12,<13",
     "msgpack>=1.0,<2",
@@ -17,7 +33,7 @@ local = ["frondori-engine>=0.4"]
 dev = ["pytest>=7", "frondori-engine>=0.4"]
 
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]

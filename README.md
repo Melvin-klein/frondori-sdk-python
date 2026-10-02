@@ -219,3 +219,19 @@ d'environnement (le mode local est testé sur l'environnement d'exemple
 `tests/rps.py`, enregistré à la main). Les vecteurs de
 `tests/test_messages.py` sont des octets réellement produits par le serveur
 Rust (`protocol::encode`) ; s'ils cassent, le protocole a changé côté serveur.
+
+## Publier une version
+
+1. Mettre à jour `version` dans `pyproject.toml` et commiter.
+2. Pousser un tag du même numéro : `git tag v0.1.0 && git push origin v0.1.0`.
+
+La CI (`.github/workflows/ci.yml`) teste, construit et publie sur PyPI ; elle
+refuse un tag qui ne correspond pas à la version. Publication par *Trusted
+Publishing*, sans token : à configurer une fois sur PyPI (projet `frondori-sdk` >
+Publishing > trusted publisher GitHub : ce dépôt, workflow `ci.yml`,
+environnement `pypi`).
+
+`frondori-engine` doit être publié AVANT ce paquet (il en dépend, et la CI
+l'installe depuis PyPI).
+
+Licence : MIT.
