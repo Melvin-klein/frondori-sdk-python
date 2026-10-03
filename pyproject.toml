@@ -26,6 +26,10 @@ dependencies = [
     "gymnasium>=1.0",
 ]
 
+[project.urls]
+Source = "https://github.com/Melvin-klein/frondori-sdk-python"
+Issues = "https://github.com/Melvin-klein/frondori-sdk-python/issues"
+
 [project.optional-dependencies]
 # `local` : jouer en local (`Agent(..., local=True)`) ; il faut aussi le
 # paquet de l'environnement voulu (ex. frondori-kitchen).
