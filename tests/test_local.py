@@ -106,6 +106,8 @@ def test_others_must_cover_every_other_seat():
 
 def test_without_url_the_agent_goes_to_the_frondori_server(monkeypatch):
     monkeypatch.delenv("FRONDORI_URL", raising=False)
+    # L'adresse publiée avec le SDK : la changer casse tous les clients installés.
+    assert DEFAULT_URL == "wss://play.frondori.com/agent"
     assert Agent(token="frd_x", environment="kitchen-v0").url == DEFAULT_URL
     monkeypatch.setenv("FRONDORI_URL", "ws://localhost:8080/agent")
     assert Agent(token="frd_x", environment="kitchen-v0").url == "ws://localhost:8080/agent"

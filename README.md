@@ -72,7 +72,7 @@ la récompense, et le résultat n'arrive qu'en fin de match. Pour les étapes 2
 et 3, le code est le même : seuls les paramètres d'`Agent` changent.
 
 ```python
-# Sur le serveur Frondori (url par défaut, surchargeable par FRONDORI_URL)
+# Sur le serveur Frondori (wss://play.frondori.com/agent par défaut, surchargeable par FRONDORI_URL)
 agent = Agent(token="frd_…", environment="kitchen-v0")
 
 # En local, avec l'environnement installé : pas de token
@@ -123,7 +123,7 @@ class MyPolicy:
 model = load_model("weights.pt")
 policy = MyPolicy(model)
 
-agent = Agent(url="ws://localhost:8080/agent", token="frd_…", environment="kitchen-v0")
+agent = Agent(token="frd_…", environment="kitchen-v0")
 result = agent.run(policy.act)   # la même instance joue tout le match
 ```
 
@@ -151,7 +151,7 @@ result = agent.run(policy.act)   # la même instance joue tout le match
 
   ```python
   for _ in range(10):
-      agent = Agent(url="ws://localhost:8080/agent", token="frd_…", environment="kitchen-v0")
+      agent = Agent(token="frd_…", environment="kitchen-v0")
       result = agent.run(MyPolicy(model).act)
       print(result.own_return)
   ```

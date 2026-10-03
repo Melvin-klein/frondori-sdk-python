@@ -36,9 +36,11 @@ from .spaces import from_wire, space_from_spec, to_wire
 logger = logging.getLogger(__name__)
 
 # Le serveur de compétition Frondori, utilisé quand `url` n'est pas fournie.
-# Adresse PROVISOIRE, à remplacer au déploiement ; surchargeable sans toucher
-# au code par la variable d'environnement FRONDORI_URL.
-DEFAULT_URL = "wss://frondori.example/agent"
+# Sous-domaine dédié au serveur de jeu (le site est sur frondori.com) : il
+# peut changer de machine sans republier le SDK. Surchargeable sans toucher
+# au code par la variable d'environnement FRONDORI_URL (préproduction, serveur
+# local...).
+DEFAULT_URL = "wss://play.frondori.com/agent"
 
 
 def default_url() -> str:

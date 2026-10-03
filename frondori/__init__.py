@@ -7,7 +7,7 @@ Usage minimal :
     def act(observation):
         return policy(observation)  # une action de agent.action_space
 
-    agent = Agent(url="ws://localhost:8080/agent", token="mon-token", environment="kitchen-v0")
+    agent = Agent(token="mon-token", environment="kitchen-v0")  # wss://play.frondori.com
     result = agent.run(act)
     print(result.own_return)
 

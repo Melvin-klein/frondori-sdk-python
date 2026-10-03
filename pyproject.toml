@@ -27,6 +27,8 @@ dependencies = [
 ]
 
 [project.urls]
+Homepage = "https://frondori.com"
+Documentation = "https://frondori.com/documentation/sdks"
 Source = "https://github.com/Melvin-klein/frondori-sdk-python"
 Issues = "https://github.com/Melvin-klein/frondori-sdk-python/issues"
 
