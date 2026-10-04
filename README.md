@@ -346,13 +346,16 @@ Pas de reconnexion : une déconnexion en cours de match est un forfait.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -e ".[dev]"            # + ".[dev,train]" pour les tests des agents (PyTorch)
 python -m pytest
 ```
 
 Les tests sont isolés : aucun ne nécessite le serveur réel, ni aucun paquet
-d'environnement (le mode local est testé sur l'environnement d'exemple
-`tests/rps.py`, enregistré à la main). Les vecteurs de
+d'environnement (le mode local et l'entraînement sont testés sur des
+environnements d'exemple enregistrés à la main : `tests/rps.py`,
+pierre-feuille-ciseaux, et `tests/target.py`, à actions continues).
+`tests/test_agents.py` vérifie que PPO, DQN et SAC apprennent vraiment ; il
+est ignoré sans PyTorch (la CI le lance dans un job à part). Les vecteurs de
 `tests/test_messages.py` sont des octets réellement produits par le serveur
 Rust (`protocol::encode`) ; s'ils cassent, le protocole a changé côté serveur.
 
