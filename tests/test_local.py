@@ -74,7 +74,7 @@ def test_invalid_actions_are_replaced_by_the_neutral_action(caplog):
     assert result.actions_rejected == 100
     # Action neutre (0 : passer) contre la pierre : 100 manches perdues.
     assert result.own_return == -100.0
-    assert "action refusée" in caplog.text
+    assert "action rejected" in caplog.text
 
 
 def test_the_compute_budget_is_enforced_as_in_competition(caplog):
@@ -86,7 +86,7 @@ def test_the_compute_budget_is_enforced_as_in_competition(caplog):
 
     assert result.actions_too_slow == 3
     assert result.max_compute_ms >= 20
-    assert "au-delà du budget de 5.0 ms" in caplog.text
+    assert "over the environment's budget of 5.0 ms" in caplog.text
 
 
 def test_numpy_actions_are_accepted():
@@ -95,12 +95,12 @@ def test_numpy_actions_are_accepted():
 
 
 def test_an_environment_that_is_not_installed_says_how_to_install_it():
-    with pytest.raises(ValueError, match="non installé.*pip install"):
+    with pytest.raises(ValueError, match="not installed.*pip install"):
         Agent(environment="chess-v0", local=True).run(lambda o: 0)
 
 
 def test_others_must_cover_every_other_seat():
-    with pytest.raises(ValueError, match="1 politique"):
+    with pytest.raises(ValueError, match="1 policy"):
         Agent(environment="rps-v0", local=True, others=[lambda o: 0, lambda o: 0]).run(lambda o: 0)
 
 

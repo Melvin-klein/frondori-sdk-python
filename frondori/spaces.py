@@ -37,7 +37,7 @@ def space_from_spec(spec: dict) -> spaces.Space:
         )
     if kind == "dict":
         return spaces.Dict({key: space_from_spec(sub) for key, sub in spec["spaces"].items()})
-    raise ProtocolError(f"space inconnu de ce SDK : {kind!r} (SDK à mettre à jour ?)")
+    raise ProtocolError(f"space unknown to this SDK: {kind!r} (is the SDK up to date?)")
 
 
 def from_wire(space: spaces.Space, value):

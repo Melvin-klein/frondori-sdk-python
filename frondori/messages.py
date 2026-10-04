@@ -117,7 +117,7 @@ def decode_server_message(raw: bytes) -> ServerMessage:
     """Décode un message brut reçu du serveur (frame WebSocket binaire)."""
     data = msgpack.unpackb(raw, raw=False)
     if not isinstance(data, dict) or len(data) != 1:
-        raise ProtocolError(f"enveloppe de message invalide : {data!r}")
+        raise ProtocolError(f"invalid message envelope: {data!r}")
     ((variant, payload),) = data.items()
 
     try:
@@ -151,8 +151,8 @@ def decode_server_message(raw: bytes) -> ServerMessage:
             case "Ping":
                 return Ping(nonce=payload["nonce"])
     except (KeyError, TypeError, ValueError) as exc:
-        raise ProtocolError(f"message {variant!r} mal formé : {exc!r}") from exc
-    raise ProtocolError(f"message serveur inconnu : {variant!r}")
+        raise ProtocolError(f"malformed {variant!r} message: {exc!r}") from exc
+    raise ProtocolError(f"unknown server message: {variant!r} (is the SDK up to date?)")
 
 
 def encode_client_message(message: Hello | ActionMessage | Pong) -> bytes:
@@ -168,5 +168,5 @@ def encode_client_message(message: Hello | ActionMessage | Pong) -> bytes:
     elif isinstance(message, Pong):
         payload = {"Pong": {"nonce": message.nonce}}
     else:
-        raise ProtocolError(f"type de message client inconnu : {message!r}")
+        raise ProtocolError(f"unknown client message type: {message!r}")
     return msgpack.packb(payload, use_bin_type=True)

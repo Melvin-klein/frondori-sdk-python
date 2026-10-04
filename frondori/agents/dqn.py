@@ -98,7 +98,7 @@ class DQN(TorchPolicy):
 
     def _check_action_space(self, action_space):
         if not isinstance(action_space, spaces.Discrete):
-            raise ValueError(f"DQN gère les actions Discrete, pas {action_space} (essayer SAC ou PPO)")
+            raise ValueError(f"DQN handles Discrete actions, not {action_space} (try SAC or PPO)")
 
     def _build(self):
         sizes = [self.observation_dim, *self.config["hidden_sizes"], int(self.agent_action_space.n)]

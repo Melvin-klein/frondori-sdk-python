@@ -43,8 +43,8 @@ class SeatEnv(gym.Env):
 
         if others is not None and len(others) != len(self._seats) - 1:
             raise ValueError(
-                f"{environment} a {len(self._seats)} agents : `others` doit contenir "
-                f"{len(self._seats) - 1} politique(s), une par autre siège (reçu {len(others)})"
+                f"{environment} has {len(self._seats)} agents: `others` must hold "
+                f"{len(self._seats) - 1} policy(ies), one per other seat (got {len(others)})"
             )
         self._learner = policy
         self._others = list(others) if others is not None else None
@@ -60,8 +60,8 @@ class SeatEnv(gym.Env):
             for s in self._seats
         ):
             raise ValueError(
-                f"{environment} : les sièges n'ont pas tous les mêmes spaces ; "
-                "SeatEnv ne sait pas (encore) entraîner un agent sur des sièges différents"
+                f"{environment}: its agents do not all share the same spaces; "
+                "the SDK cannot (yet) train one agent on different seats: train with frondori_engine instead"
             )
 
         learner = as_policy(policy)
@@ -103,7 +103,7 @@ class SeatEnv(gym.Env):
 
     def step(self, action):
         if self._own is None:
-            raise RuntimeError("step() avant reset()")
+            raise RuntimeError("step() called before reset()")
         actions, rejected = {}, False
         for seat in self._env.agents:
             if seat == self._own:

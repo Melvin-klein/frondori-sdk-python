@@ -74,10 +74,10 @@ def test_run_raises_when_called_from_a_running_event_loop():
 def test_authentication_error_is_raised_on_auth_error():
     async def handler(websocket):
         await websocket.recv()
-        await websocket.send(pack({"AuthError": {"reason": "token refusé"}}))
+        await websocket.send(pack({"AuthError": {"reason": "unknown token"}}))
 
     async def scenario(url):
-        with pytest.raises(AuthenticationError, match="token refusé"):
+        with pytest.raises(AuthenticationError, match="unknown token"):
             await Agent(url, token="x", environment="demo-v0").play(lambda observation: None)
 
     serve(handler, scenario)
@@ -165,5 +165,5 @@ def test_a_full_match_decodes_observations_and_reports_the_result(caplog):
     )
     assert result.compute_budget_ms == 200.0
     # L'action refusée et l'action trop lente ont été signalées.
-    assert "action refusée" in caplog.text
-    assert "au-delà du budget de 200.0 ms" in caplog.text
+    assert "action rejected" in caplog.text
+    assert "over the environment's budget of 200.0 ms" in caplog.text

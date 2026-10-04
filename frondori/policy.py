@@ -75,7 +75,7 @@ class Formatter:
 
     def __init__(self, observation_space: spaces.Space, action_space: spaces.Space, observation_format: str):
         if observation_format not in FORMATS:
-            raise ValueError(f"observation_format doit être l'un de {FORMATS}, pas {observation_format!r}")
+            raise ValueError(f"observation_format must be one of {FORMATS}, not {observation_format!r}")
         self.format = observation_format
         self.source_observation_space = observation_space
         self.source_action_space = action_space
@@ -97,8 +97,8 @@ class Formatter:
             self.action_space = action_space
         else:
             raise ValueError(
-                f"observation_format=\"flat\" ne gère pas les actions {type(action_space).__name__} "
-                "(seulement Box, Discrete, MultiDiscrete) : utiliser observation_format=\"dict\""
+                f"observation_format=\"flat\" does not handle {type(action_space).__name__} actions "
+                "(only Box, Discrete, MultiDiscrete): use observation_format=\"dict\""
             )
 
     def observation(self, observation):

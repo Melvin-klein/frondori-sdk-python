@@ -145,11 +145,11 @@ class Agent:
         seed: int | None = None,
     ) -> None:
         if not environment:
-            raise ValueError("`environment` est requis (ex. environment=\"kitchen-v0\")")
+            raise ValueError("`environment` is required (e.g. environment=\"kitchen-v0\")")
         if not local and not token:
-            raise ValueError("`token` est requis pour jouer sur un serveur (ou local=True pour jouer en local)")
+            raise ValueError("`token` is required to play on a server (or local=True to play locally)")
         if not local and (others is not None or seed is not None):
-            raise ValueError("`others` et `seed` ne servent qu'en local (local=True)")
+            raise ValueError("`others` and `seed` only apply locally (local=True)")
         self.url = None if local else (url or default_url())
         self.token = token
         # Identifiant versionné de l'environnement à jouer (ex: "football-v0").
@@ -183,13 +183,13 @@ class Agent:
         """
         if not self.local:
             raise ValueError(
-                "l'entraînement se fait en local : "
+                "training is local only: "
                 f"Agent(environment={self.environment!r}, local=True).train(...)"
             )
         if not isinstance(policy, Policy):
             raise TypeError(
-                "train() attend un agent qui hérite de frondori.Policy (avec act et learn), "
-                f"reçu {type(policy).__name__}"
+                "train() expects an agent that inherits from frondori.Policy (with act and learn), "
+                f"got {type(policy).__name__}"
             )
         from .training import env_factory
 
@@ -221,9 +221,9 @@ class Agent:
             pass  # Aucune boucle en cours : cas normal pour un script synchrone.
         else:
             raise RuntimeError(
-                "Agent.run() ne peut pas être appelé depuis une boucle asyncio "
-                "déjà en cours (notebook Jupyter, code déjà async...). "
-                "Utilise `await agent.play(act)` à la place."
+                "Agent.run() cannot be called from a running asyncio event loop "
+                "(Jupyter notebook, async code...). "
+                "Use `await agent.play(act)` instead."
             )
         return asyncio.run(self.play(act))
 
@@ -255,7 +255,7 @@ class Agent:
             # Toute fermeture qui arrive JUSQU'ICI (avant d'avoir obtenu un
             # résultat) est anormale.
             raise ConnectionLostError(
-                f"connexion perdue avec le serveur avant la fin du match : {exc}"
+                f"connection to the server lost before the end of the match: {exc}"
             ) from exc
         finally:
             with contextlib.suppress(websockets.exceptions.ConnectionClosed):
@@ -272,7 +272,7 @@ class Agent:
             case AuthError(reason=reason):
                 raise AuthenticationError(reason)
             case _:
-                raise ProtocolError(f"attendu Welcome juste après Hello, reçu {message!r}")
+                raise ProtocolError(f"expected Welcome right after Hello, got {message!r}")
 
     async def _play_loop(self, socket, act: Callable[[Any], Any]) -> MatchResult:
         # `act` adaptée aux spaces du match (format d'une `Policy`), dès qu'ils
@@ -303,7 +303,7 @@ class Agent:
                     await socket.send(encode_client_message(Pong(nonce=nonce)))
                 case ObservationMessage():
                     if self.observation_space is None:
-                        raise ProtocolError("observation reçue avant MatchStart")
+                        raise ProtocolError("observation received before MatchStart")
                     counts[message.last_action] += 1
                     self._warn_first(message.last_action, counts, last_action, compute_times)
 
@@ -342,7 +342,7 @@ class Agent:
                         compute_ms=compute_times,
                     )
                 case _:
-                    raise ProtocolError(f"message inattendu pendant le match : {message!r}")
+                    raise ProtocolError(f"unexpected message during the match: {message!r}")
 
     def _warn_first(self, status: ActionStatus, counts: dict, last_action, compute_times: list[float]) -> None:
         # Une seule fois par match et par problème : les suivants sont
@@ -351,20 +351,20 @@ class Agent:
             return
         if status is ActionStatus.REJECTED:
             logger.warning(
-                "action refusée par le serveur : %r n'appartient pas à l'action_space %s. "
-                "L'action neutre a été jouée à la place (total dans MatchResult.actions_rejected).",
+                "action rejected: %r does not fit the action space %s. "
+                "The neutral action was played instead (total in MatchResult.actions_rejected).",
                 last_action,
                 self.action_space,
             )
         elif status is ActionStatus.TOO_SLOW:
             logger.warning(
-                "action calculée en %.1f ms, au-delà du budget de %s ms de l'environnement : "
-                "l'action neutre a été jouée à la place (total dans MatchResult.actions_too_slow).",
+                "action computed in %.1f ms, over the environment's budget of %s ms: "
+                "the neutral action was played instead (total in MatchResult.actions_too_slow).",
                 compute_times[-1] if compute_times else float("nan"),
                 self.compute_budget_ms,
             )
         elif status is ActionStatus.MISSING:
             logger.warning(
-                "action jamais reçue par le serveur (connexion bloquée ou coupée ?) : "
-                "l'action neutre a été jouée à la place (total dans MatchResult.actions_missing)."
+                "action never received by the server (stuck or cut connection?): "
+                "the neutral action was played instead (total in MatchResult.actions_missing)."
             )

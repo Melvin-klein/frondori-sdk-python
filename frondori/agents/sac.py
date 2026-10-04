@@ -117,9 +117,9 @@ class SAC(TorchPolicy):
 
     def _check_action_space(self, action_space):
         if not isinstance(action_space, spaces.Box):
-            raise ValueError(f"SAC gère les actions Box, pas {action_space} (essayer DQN ou PPO)")
+            raise ValueError(f"SAC handles Box actions, not {action_space} (try DQN or PPO)")
         if not (np.all(np.isfinite(action_space.low)) and np.all(np.isfinite(action_space.high))):
-            raise ValueError("SAC a besoin d'actions bornées (low et high finis)")
+            raise ValueError("SAC needs bounded actions (finite low and high)")
 
     def _build(self):
         hidden = tuple(self.config["hidden_sizes"])

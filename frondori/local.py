@@ -43,8 +43,8 @@ def play_local(agent: "Agent", act: Callable[[Any], Any]) -> "MatchResult":
     others = list(agent.others) if agent.others is not None else None
     if others is not None and len(others) != len(seats) - 1:
         raise ValueError(
-            f"{agent.environment} a {len(seats)} agents : `others` doit contenir {len(seats) - 1} "
-            f"politique(s), une par autre siège (reçu {len(others)})"
+            f"{agent.environment} has {len(seats)} agents: `others` must hold {len(seats) - 1} "
+            f"policy(ies), one per other seat (got {len(others)})"
         )
 
     # Comme en ligne, le siège dépend de l'ordre d'arrivée : tiré au hasard
@@ -126,10 +126,10 @@ def make_engine_env(engine, environment: str):
     try:
         return engine.make(environment)
     except KeyError:
-        installed = ", ".join(engine.registered_ids()) or "aucun"
+        installed = ", ".join(engine.registered_ids()) or "none"
         raise ValueError(
-            f"environnement {environment!r} non installé (installés : {installed}). "
-            f"Installe son paquet, par exemple : pip install frondori-kitchen"
+            f"environment {environment!r} is not installed (installed: {installed}). "
+            f"Install its package, for example: pip install frondori-kitchen"
         ) from None
 
 
@@ -139,7 +139,7 @@ def import_engine():
         from frondori_engine import wire
     except ImportError:
         raise ImportError(
-            "le mode local a besoin de frondori-engine et du paquet de l'environnement : "
-            "pip install frondori-engine frondori-kitchen (par exemple)"
+            "local mode needs the environment's package (it brings frondori-engine): "
+            "pip install frondori-kitchen (for example)"
         ) from None
     return frondori_engine, wire

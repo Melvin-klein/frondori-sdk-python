@@ -18,7 +18,7 @@ try:
     from torch import nn
 except ImportError as exc:  # pragma: no cover - dépend de l'installation
     raise ImportError(
-        'les agents de frondori.agents ont besoin de PyTorch : pip install "frondori-sdk[train]"'
+        'the agents of frondori.agents need PyTorch: pip install "frondori-sdk[train]"'
     ) from exc
 
 
@@ -84,7 +84,7 @@ def space_state(space: spaces.Space) -> dict:
         return {"type": "discrete", "n": int(space.n)}
     if isinstance(space, spaces.Box):
         return {"type": "box", "low": space.low.tolist(), "high": space.high.tolist(), "dtype": str(space.dtype)}
-    raise ValueError(f"space non géré : {space}")
+    raise ValueError(f"unsupported space: {space}")
 
 
 def space_from_state(state: dict) -> spaces.Space:
@@ -120,8 +120,8 @@ class Progress:
         mean = f"{np.mean(self.recent):.2f}" if self.recent else "-"
         speed = step / max(now - self.started, 1e-9)
         print(
-            f"pas {step:>9,} / {self.total:,}  ·  retour moyen ({len(self.recent)} derniers épisodes) {mean}"
-            f"  ·  {speed:,.0f} pas/s".replace(",", " "),
+            f"step {step:>9,} / {self.total:,}  ·  mean return (last {len(self.recent)} episodes) {mean}"
+            f"  ·  {speed:,.0f} steps/s",
             flush=True,
         )
 
@@ -148,7 +148,7 @@ class TorchPolicy(Policy):
     ):
         unknown = set(config) - set(self.DEFAULTS)
         if unknown:
-            raise TypeError(f"{type(self).__name__} : réglage(s) inconnu(s) {sorted(unknown)}")
+            raise TypeError(f"{type(self).__name__}: unknown setting(s) {sorted(unknown)}")
         # Seuls les réglages explicitement donnés : les autres sont choisis à
         # l'entraînement (certains dépendent du type d'action).
         self.overrides = {key: value for key, value in config.items() if value is not None}
@@ -186,11 +186,11 @@ class TorchPolicy(Policy):
         """Réseaux construits au premier entraînement (les tailles viennent
         de l'environnement) ; un second `train()` reprend où on en était."""
         if not isinstance(env.observation_space, spaces.Box) or len(env.observation_space.shape) != 1:
-            raise ValueError(f"{type(self).__name__} attend des observations à plat (Box 1D), reçu {env.observation_space}")
+            raise ValueError(f"{type(self).__name__} expects flat observations (1D Box), got {env.observation_space}")
         observation_dim = int(env.observation_space.shape[0])
         if self.observation_dim is not None:
             if observation_dim != self.observation_dim or space_state(env.action_space) != space_state(self.agent_action_space):
-                raise ValueError("cet agent a été entraîné sur un autre environnement (spaces différents)")
+                raise ValueError("this agent was trained on another environment (different spaces)")
             return
         self._check_action_space(env.action_space)
         self.observation_dim = observation_dim
@@ -218,8 +218,8 @@ class TorchPolicy(Policy):
     def _require_trained(self) -> None:
         if self.observation_dim is None:
             raise RuntimeError(
-                f"{type(self).__name__} n'est pas entraîné : Agent(..., local=True).train(agent), "
-                f"ou {type(self).__name__}.load(chemin)"
+                f"{type(self).__name__} is not trained: Agent(..., local=True).train(agent), "
+                f"or {type(self).__name__}.load(path)"
             )
 
     def save(self, path: str) -> None:
@@ -246,7 +246,7 @@ class TorchPolicy(Policy):
         # code exécuté au chargement.
         data = torch.load(path, map_location=device, weights_only=True)
         if data["agent"] != cls.__name__:
-            raise ValueError(f"{path} contient un agent {data['agent']}, pas {cls.__name__}")
+            raise ValueError(f"{path} holds a {data['agent']} agent, not {cls.__name__}")
         agent = cls(device=device, **kwargs)
         agent.config = dict(data["config"])
         agent.overrides = dict(data["config"])

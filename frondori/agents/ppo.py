@@ -126,7 +126,7 @@ class PPO(TorchPolicy):
 
     def _check_action_space(self, action_space):
         if not isinstance(action_space, (spaces.Discrete, spaces.Box)):
-            raise ValueError(f"PPO gère les actions Discrete et Box, pas {action_space}")
+            raise ValueError(f"PPO handles Discrete and Box actions, not {action_space}")
 
     def _build(self):
         self.network = _Network(self.observation_dim, self.agent_action_space, tuple(self.config["hidden_sizes"])).to(

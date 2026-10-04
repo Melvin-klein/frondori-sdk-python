@@ -90,12 +90,12 @@ def test_agents_refuse_the_wrong_kind_of_action():
 
 
 def test_an_untrained_agent_says_so():
-    with pytest.raises(RuntimeError, match="pas entraîné"):
+    with pytest.raises(RuntimeError, match="not trained"):
         PPO().act(np.zeros(3))
 
 
 def test_unknown_settings_are_refused():
-    with pytest.raises(TypeError, match="inconnu"):
+    with pytest.raises(TypeError, match="unknown setting"):
         PPO(learning_rat=1e-3)
 
 
