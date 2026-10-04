@@ -210,7 +210,7 @@ Pas de reconnexion : une déconnexion en cours de match est un forfait.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e ../frondori-engine -e ".[dev]"   # frondori-engine : pas encore sur PyPI
+pip install -e ".[dev]"
 python -m pytest
 ```
 
