@@ -31,6 +31,7 @@ from .messages import (
     decode_server_message,
     encode_client_message,
 )
+from .policy import Policy, bind
 from .spaces import from_wire, space_from_spec, to_wire
 
 logger = logging.getLogger(__name__)
@@ -118,6 +119,12 @@ class Agent:
     Depuis un notebook Jupyter (ou tout code déjà dans une boucle asyncio),
     utiliser `await agent.play(act)` à la place de `run(act)`.
 
+    `act` peut aussi être un agent `Policy` (cf. `frondori.policy`) : il
+    reçoit alors ses observations dans son format (`observation_format`), et
+    s'entraîne en local avec `train` :
+
+        Agent(environment="kitchen-v0", local=True).train(my_agent, total_timesteps=500_000)
+
     Les matchs se jouent en pas-à-pas : le serveur attend ton action avant
     d'avancer, ta latence réseau ne te coûte donc rien. Ce qui compte, c'est
     le temps de calcul : le SDK mesure le temps entre la réception de
@@ -163,6 +170,35 @@ class Agent:
         self.action_space: spaces.Space | None = None
         # Temps de calcul accordé par action, en ms.
         self.compute_budget_ms: float | None = None
+
+    def train(self, policy: Policy, **kwargs) -> Any:
+        """Entraîne `policy` sur l'environnement installé, en local : appelle
+        `policy.learn(make_env, **kwargs)`, où `make_env()` crée un
+        environnement Gymnasium à un seul agent (cf. `frondori.training`).
+        Les autres sièges sont joués par `policy` elle-même (self-play), ou
+        par `others` ; `seed` rend l'entraînement reproductible.
+
+        `policy.training` vaut `True` pendant l'entraînement, `False` après.
+        Renvoie ce que renvoie `learn`.
+        """
+        if not self.local:
+            raise ValueError(
+                "l'entraînement se fait en local : "
+                f"Agent(environment={self.environment!r}, local=True).train(...)"
+            )
+        if not isinstance(policy, Policy):
+            raise TypeError(
+                "train() attend un agent qui hérite de frondori.Policy (avec act et learn), "
+                f"reçu {type(policy).__name__}"
+            )
+        from .training import env_factory
+
+        make_env = env_factory(self.environment, policy, self.others, self.seed)
+        policy.training = True
+        try:
+            return policy.learn(make_env, **kwargs)
+        finally:
+            policy.training = False
 
     def run(self, act: Callable[[Any], Any]) -> MatchResult:
         """
@@ -239,6 +275,9 @@ class Agent:
                 raise ProtocolError(f"attendu Welcome juste après Hello, reçu {message!r}")
 
     async def _play_loop(self, socket, act: Callable[[Any], Any]) -> MatchResult:
+        # `act` adaptée aux spaces du match (format d'une `Policy`), dès qu'ils
+        # sont connus (`MatchStart`).
+        bound_act = act
         counts = {status: 0 for status in ActionStatus}
         last_action = None
         compute_times: list[float] = []
@@ -259,6 +298,7 @@ class Agent:
                     self.observation_space = space_from_spec(message.observation_space)
                     self.action_space = space_from_spec(message.action_space)
                     self.compute_budget_ms = message.compute_budget_ms
+                    bound_act = bind(act, self.observation_space, self.action_space)
                 case Ping(nonce=nonce):
                     await socket.send(encode_client_message(Pong(nonce=nonce)))
                 case ObservationMessage():
@@ -272,7 +312,7 @@ class Agent:
                     if message.terminated or message.truncated:
                         continue
 
-                    last_action = act(from_wire(self.observation_space, message.observation))
+                    last_action = bound_act(from_wire(self.observation_space, message.observation))
                     wire_action = to_wire(last_action)
                     compute_ms = (time.perf_counter() - received_at) * 1000
                     compute_times.append(compute_ms)

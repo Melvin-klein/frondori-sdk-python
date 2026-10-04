@@ -26,6 +26,7 @@ import uuid
 from typing import TYPE_CHECKING, Any, Callable
 
 from .messages import ActionStatus
+from .policy import bind
 from .spaces import from_wire, space_from_spec, to_wire
 
 if TYPE_CHECKING:
@@ -35,15 +36,8 @@ if TYPE_CHECKING:
 def play_local(agent: "Agent", act: Callable[[Any], Any]) -> "MatchResult":
     from .client import MatchResult
 
-    engine, wire = _import_engine()
-    try:
-        env = engine.make(agent.environment)
-    except KeyError:
-        installed = ", ".join(engine.registered_ids()) or "aucun"
-        raise ValueError(
-            f"environnement {agent.environment!r} non installé (installés : {installed}). "
-            f"Installe son paquet, par exemple : pip install frondori-kitchen"
-        ) from None
+    engine, wire = import_engine()
+    env = make_engine_env(engine, agent.environment)
 
     seats = list(env.possible_agents)
     others = list(agent.others) if agent.others is not None else None
@@ -59,16 +53,23 @@ def play_local(agent: "Agent", act: Callable[[Any], Any]) -> "MatchResult":
     rng = random.Random(agent.seed)
     own = rng.choice(seats)
     other_seats = [seat for seat in seats if seat != own]
-    policies = {own: act, **{seat: (others[i] if others else act) for i, seat in enumerate(other_seats)}}
 
     budget_ms = float(env.metadata["compute_budget_ms"])
     # Les spaces tels que le SDK les reconstruit en ligne à partir de
     # `MatchStart` : mêmes types, même décodage.
     observation_spaces = {seat: space_from_spec(wire.space_to_spec(env.observation_space(seat))) for seat in seats}
+    action_spaces = {seat: space_from_spec(wire.space_to_spec(env.action_space(seat))) for seat in seats}
+    # Une `Policy` reçoit ses observations dans son format (cf. `policy.py`),
+    # comme en ligne.
+    policies = {
+        seat: bind(act if seat == own else (others[other_seats.index(seat)] if others else act),
+                   observation_spaces[seat], action_spaces[seat])
+        for seat in seats
+    }
     agent.match_id = f"local-{uuid.uuid4()}"
     agent.agent_name = own
     agent.observation_space = observation_spaces[own]
-    agent.action_space = space_from_spec(wire.space_to_spec(env.action_space(own)))
+    agent.action_space = action_spaces[own]
     agent.compute_budget_ms = budget_ms
 
     counts = {status: 0 for status in ActionStatus}
@@ -121,7 +122,18 @@ def play_local(agent: "Agent", act: Callable[[Any], Any]) -> "MatchResult":
     )
 
 
-def _import_engine():
+def make_engine_env(engine, environment: str):
+    try:
+        return engine.make(environment)
+    except KeyError:
+        installed = ", ".join(engine.registered_ids()) or "aucun"
+        raise ValueError(
+            f"environnement {environment!r} non installé (installés : {installed}). "
+            f"Installe son paquet, par exemple : pip install frondori-kitchen"
+        ) from None
+
+
+def import_engine():
     try:
         import frondori_engine
         from frondori_engine import wire

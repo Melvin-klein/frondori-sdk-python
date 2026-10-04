@@ -24,6 +24,9 @@ pip install frondori-sdk
 
 # Pour jouer aussi en local : frondori-engine et les environnements voulus
 pip install "frondori-sdk[local]" frondori-kitchen
+
+# Pour entraîner avec les agents prêts à l'emploi (PPO, DQN, SAC) : PyTorch en plus
+pip install "frondori-sdk[train]" frondori-kitchen
 ```
 
 Dépendances : Python >= 3.10, `websockets`, `msgpack`, `numpy`, `gymnasium`.
@@ -63,13 +66,15 @@ Trois étapes, trois outils :
 
 | Étape | Outil | Pour |
 |---|---|---|
-| 1. Entraîner | `frondori_engine.make("kitchen-v0")` (API PettingZoo) | Apprendre : chaque pas, chaque récompense, tous les agents sous ton contrôle |
+| 1. Entraîner | `Agent(environment="kitchen-v0", local=True).train(agent)` | Apprendre vite : un agent prêt à l'emploi, ou ton algorithme (CleanRL, Stable-Baselines3) |
+| 1 bis. Entraîner | `frondori_engine.make("kitchen-v0")` (API PettingZoo) | Contrôle total : chaque pas, chaque récompense, tous les agents |
 | 2. Évaluer | `Agent(environment="kitchen-v0", local=True)` | Vérifier une politique entraînée en conditions de compétition |
 | 3. Concourir | `Agent(token="frd_…", environment="kitchen-v0")` | Jouer contre les autres participants, entrer au classement |
 
-`Agent` ne sert pas à entraîner : `act` ne reçoit que l'observation, jamais
-la récompense, et le résultat n'arrive qu'en fin de match. Pour les étapes 2
-et 3, le code est le même : seuls les paramètres d'`Agent` changent.
+`run` ne sert pas à entraîner : `act` ne reçoit que l'observation, jamais
+la récompense, et le résultat n'arrive qu'en fin de match (pour entraîner :
+`train`, ci-dessous). Pour les étapes 2 et 3, le code est le même : seuls les
+paramètres d'`Agent` changent.
 
 ```python
 # Sur le serveur Frondori (wss://play.frondori.com/agent par défaut, surchargeable par FRONDORI_URL)
@@ -99,6 +104,137 @@ result = Agent(environment="football-v0", local=True, others=[baseline.act], see
 même appelable joue tous les sièges : si ta politique garde un état, donne
 aux autres sièges leurs propres instances via `others`. En local, `run()`
 fonctionne partout, notebooks compris.
+
+## Entraîner avec le SDK
+
+Un agent entraînable hérite de `frondori.Policy` et implémente deux méthodes :
+`act(observation)` (jouer) et `learn(make_env, **kwargs)` (apprendre). `train`
+l'entraîne en local, puis le même objet joue en match :
+
+```python
+from frondori import Agent
+from frondori.agents import PPO     # pip install "frondori-sdk[train]"
+
+agent = PPO()
+Agent(environment="kitchen-v0", local=True).train(agent, total_timesteps=500_000)
+agent.save("ppo.pt")
+
+Agent(environment="kitchen-v0", local=True).run(agent)             # évaluer
+Agent(token="frd_…", environment="kitchen-v0").run(PPO.load("ppo.pt"))  # concourir
+```
+
+`train(agent, **kwargs)` met `agent.training` à `True` et appelle
+`agent.learn(make_env, **kwargs)`. Chaque `make_env()` crée un environnement
+**Gymnasium à un seul agent** : le format qu'attendent CleanRL,
+Stable-Baselines3 et la plupart des bibliothèques.
+
+- Ton siège est tiré au hasard à chaque épisode ; les autres sièges sont
+  joués par ton agent lui-même (self-play), ou par `others`
+  (`Agent(..., local=True, others=[baseline.act]).train(agent)`).
+- Mêmes observations qu'en compétition, au format de l'agent ; une action
+  invalide est remplacée par l'action neutre (`info["action_rejected"]`). Pas
+  de budget de calcul à l'entraînement.
+- `info["env_reward"]` : la vraie récompense ;
+  `env.unwrapped.raw_observation` : l'observation d'origine (dict). De quoi
+  façonner la récompense dans un wrapper Gymnasium.
+- `seed` (`Agent(..., seed=0)`) : chaque environnement créé reçoit sa graine
+  (seed, seed + 1...), l'entraînement est reproductible.
+
+### Le format des observations
+
+`observation_format = "flat"` (attribut de classe) : les observations sont un
+vecteur float32 (dicts aplatis, `Discrete` en one-hot), à l'entraînement
+**comme en match** — `act` reçoit toujours la même chose. Une action `Box`
+y est aussi un vecteur à plat, remis à sa forme par le SDK. Par défaut
+(`"dict"`), les observations gardent leur forme d'origine.
+
+### Agents prêts à l'emploi : `frondori.agents`
+
+Adaptés de [CleanRL](https://github.com/vwxyzjn/cleanrl) (licence MIT,
+cf. `frondori/agents/THIRD_PARTY_LICENSES.md`), un fichier chacun, à lire,
+copier et modifier :
+
+| Agent | Actions | Réglages par défaut |
+|---|---|---|
+| `PPO` | `Discrete` ou `Box` | ceux de `ppo.py` ou `ppo_continuous_action.py` selon l'action |
+| `DQN` | `Discrete` | ceux de `dqn.py` |
+| `SAC` | `Box` bornées | ceux de `sac_continuous_action.py`, observations normalisées |
+
+Tout réglage se change au constructeur (`PPO(learning_rate=1e-4,
+num_envs=8)`), plus `seed`, `device`, `verbose` et `wrap_env` (un wrapper
+Gymnasium appliqué à chaque environnement, par exemple pour façonner la
+récompense). `learn` renvoie le retour de chaque épisode ; `save(chemin)` /
+`PPO.load(chemin)` enregistrent et rechargent l'agent ; un second `train`
+reprend où le premier s'est arrêté.
+
+Exemple : en cuisine, la récompense (+1 par soupe servie) est trop rare pour
+qu'un agent qui débute la découvre. Façonnée par potentiel (ce qui ne change
+pas la stratégie optimale), PPO apprend à servir des soupes :
+
+```python
+import gymnasium as gym
+
+def potential(obs):                       # progression vers une soupe servie
+    held, (onions, _) = obs["self"][3], obs["pots"][0]
+    return (0.15 * min(onions, 2) + 0.3 * (onions >= 2) + 0.1 * (held == 1 and onions < 2)
+            + 0.2 * (held == 2 and onions >= 2) + 0.6 * (held == 3))
+
+class KitchenShaping(gym.Wrapper):
+    def reset(self, **kwargs):
+        observation, info = self.env.reset(**kwargs)
+        self.phi = potential(self.env.unwrapped.raw_observation)
+        return observation, info
+
+    def step(self, action):
+        observation, reward, terminated, truncated, info = self.env.step(action)
+        phi = potential(self.env.unwrapped.raw_observation)
+        reward += 0.99 * phi - self.phi
+        self.phi = phi
+        return observation, reward, terminated, truncated, info
+
+agent = PPO(wrap_env=KitchenShaping)
+Agent(environment="kitchen-v0", local=True).train(agent, total_timesteps=2_000_000)
+```
+
+Sans façonnage, PPO ne sert aucune soupe ; avec, 11 soupes par match (vrai
+score) après ces 2 millions de pas, environ 8 minutes sur le CPU d'un
+portable. Une politique écrite à la main en sert 13.
+
+### Ton propre algorithme
+
+`learn` reçoit la fabrique `make_env` : à toi de créer un ou plusieurs
+environnements et d'y faire tourner l'algorithme de ton choix.
+
+```python
+from frondori import Agent, Policy
+from stable_baselines3 import PPO as SB3PPO
+from stable_baselines3.common.env_util import make_vec_env
+
+class MyAgent(Policy):
+    observation_format = "flat"
+
+    def act(self, observation):
+        action, _ = self.model.predict(observation, deterministic=not self.training)
+        return int(action)
+
+    def learn(self, make_env, total_timesteps=100_000):
+        self.model = SB3PPO("MlpPolicy", make_vec_env(make_env, n_envs=4))
+        self.model.learn(total_timesteps)
+```
+
+Avec un script CleanRL : remplacer la création des environnements par
+`envs = gym.vector.SyncVectorEnv([make_env] * num_envs)`. Les scripts CleanRL
+visent Gymnasium 0.29, le SDK Gymnasium 1.x : adapter les quelques lignes des
+fins d'épisode (`autoreset_mode=gym.vector.AutoresetMode.SAME_STEP`, puis
+`infos["final_obs"]` au lieu de `infos["final_observation"]` ;
+`infos["final_info"]` est un dict de tableaux). En self-play,
+garder `SyncVectorEnv` (les adversaires sont joués par ton agent, dans le même
+processus) ; `AsyncVectorEnv` copierait l'agent dans d'autres processus, qui
+ne verraient pas ses progrès.
+
+Pour un contrôle total (tous les agents, toutes les récompenses, à chaque
+pas), l'environnement PettingZoo reste disponible directement :
+`frondori_engine.make("kitchen-v0")`.
 
 ## Un agent écrit comme une classe
 

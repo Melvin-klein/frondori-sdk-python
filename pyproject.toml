@@ -1,6 +1,6 @@
 [project]
 name = "frondori-sdk"
-version = "0.4.0"
+version = "0.5.0"
 description = "Python SDK for the Frondori AI competition platform: play any environment online, or locally in competition conditions."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -36,6 +36,9 @@ Issues = "https://github.com/Melvin-klein/frondori-sdk-python/issues"
 # `local` : jouer en local (`Agent(..., local=True)`) ; il faut aussi le
 # paquet de l'environnement voulu (ex. frondori-kitchen).
 local = ["frondori-engine>=0.4"]
+# `train` : les agents prêts à l'emploi de `frondori.agents` (PPO, DQN, SAC),
+# qui ont besoin de PyTorch. Pour un agent "maison", `local` suffit.
+train = ["frondori-engine>=0.4", "torch>=2.2"]
 dev = ["pytest>=7", "frondori-engine>=0.4"]
 
 [build-system]
@@ -43,4 +46,8 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["frondori"]
+packages = ["frondori", "frondori.agents"]
+
+# Les licences de CleanRL et de ses sources, livrées avec les agents adaptés.
+[tool.setuptools.package-data]
+"frondori.agents" = ["THIRD_PARTY_LICENSES.md"]
